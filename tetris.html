@@ -175,6 +175,7 @@
         const boardHeight = 20;
         let score = 0;
         let gameBoard = Array(boardHeight).fill().map(() => Array(boardWidth).fill(0));
+        let gameBoardColors = Array(boardHeight).fill().map(() => Array(boardWidth).fill('')); // 添加颜色数组
         let currentPiece = null;
         let gameLoop = null;
 
@@ -275,7 +276,8 @@
                                 gameOver();
                                 return;
                             }
-                            gameBoard[boardY][this.x + x] = this.color;
+                            gameBoard[boardY][this.x + x] = 1;
+                            gameBoardColors[boardY][this.x + x] = this.color; // 保存颜色
                         }
                     }
                 }
@@ -294,9 +296,13 @@
 
         function checkLines() {
             for(let y = boardHeight - 1; y >= 0; y--) {
-                if(gameBoard[y].every(cell => cell !== 0)) {
+                if(gameBoard[y].every(cell => cell === 1)) {
+                    // 移除这一行
                     gameBoard.splice(y, 1);
+                    gameBoardColors.splice(y, 1); // 同时移除颜色行
+                    // 在顶部添加新的空行
                     gameBoard.unshift(Array(boardWidth).fill(0));
+                    gameBoardColors.unshift(Array(boardWidth).fill('')); // 添加新的颜色行
                     score += 100;
                     document.getElementById('score').textContent = score;
                 }
@@ -304,23 +310,24 @@
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw board
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制已固定的方块
             for(let y = 0; y < boardHeight; y++) {
                 for(let x = 0; x < boardWidth; x++) {
                     if(gameBoard[y][x]) {
-                        ctx.fillStyle = gameBoard[y][x];
+                        ctx.fillStyle = gameBoardColors[y][x] || 'gray'; // 使用保存的颜色
                         ctx.fillRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
                     }
                 }
             }
-            
-            // Draw current piece
+
+            // 绘制当前方块
             if(currentPiece) {
                 ctx.fillStyle = currentPiece.color;
                 for(let y = 0; y < currentPiece.shape.length; y++) {
-                    for(let x = 0; x < currentPiece.shape[0].length; x++) {
+                    for(let x = 0; x < currentPiece.shape[y].length; x++) {
                         if(currentPiece.shape[y][x]) {
                             ctx.fillRect(
                                 (currentPiece.x + x) * blockSize,
@@ -338,6 +345,7 @@
             clearInterval(gameLoop);
             alert('游戏结束！得分：' + score);
             gameBoard = Array(boardHeight).fill().map(() => Array(boardWidth).fill(0));
+            gameBoardColors = Array(boardHeight).fill().map(() => Array(boardWidth).fill('')); // 重置颜色数组
             score = 0;
             document.getElementById('score').textContent = score;
             newPiece();
@@ -432,11 +440,12 @@
                     }
                     currentPiece.y--; // 回退一步，确保不会发生碰撞
                     
-                    // 将当前方块固定到游戏板上
+                    // 将当前方块固定到游戏板上，同时保存颜色
                     for(let y = 0; y < currentPiece.shape.length; y++) {
                         for(let x = 0; x < currentPiece.shape[y].length; x++) {
                             if(currentPiece.shape[y][x]) {
                                 gameBoard[currentPiece.y + y][currentPiece.x + x] = 1;
+                                gameBoardColors[currentPiece.y + y][currentPiece.x + x] = currentPiece.color;
                             }
                         }
                     }
