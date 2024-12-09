@@ -376,18 +376,20 @@
         let touchStartY = 0;
         let touchStartTime = 0;
 
-        document.addEventListener('touchstart', (e) => {
+        // 仅在游戏画布区域监听触摸事件
+        const gameCanvas = document.getElementById('gameCanvas');
+        gameCanvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             touchStartTime = Date.now();
         }, { passive: false });
 
-        document.addEventListener('touchmove', (e) => {
+        gameCanvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
         }, { passive: false });
 
-        document.addEventListener('touchend', (e) => {
+        gameCanvas.addEventListener('touchend', (e) => {
             e.preventDefault();
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;

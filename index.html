@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>经典小游戏合集</title>
     <style>
         * {
@@ -193,6 +194,59 @@
             0% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
             50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); }
             100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 36px;
+                margin-bottom: 30px;
+            }
+
+            .game-container {
+                flex-direction: column;
+                gap: 30px;
+                padding: 20px;
+            }
+
+            .game-card {
+                width: 280px;
+                padding: 20px;
+                margin: 0 auto;
+            }
+
+            .game-card:hover {
+                transform: translateY(-10px);
+            }
+
+            .game-card h2 {
+                font-size: 24px;
+            }
+
+            .game-card a {
+                padding: 12px 30px;
+                font-size: 14px;
+            }
+
+            /* 优化触摸体验 */
+            .game-card, .game-card a {
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            /* 禁用一些复杂的动画效果以提升移动端性能 */
+            .game-card::before,
+            .game-card::after {
+                display: none;
+            }
+
+            .title::after {
+                filter: blur(8px);
+            }
+
+            @keyframes titleFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
         }
     </style>
 </head>
