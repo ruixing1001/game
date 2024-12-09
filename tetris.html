@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>俄罗斯方块</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .game-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        #game-container {
+            margin-top: 20px;
+            position: relative;
+        }
+
+        canvas {
+            border: 2px solid;
+            border-image: linear-gradient(45deg, #ff00ff, #00ffff) 1;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.3),
+                0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .info {
+            margin: 20px;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: inline-block;
+        }
+
+        .controls {
+            margin: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .nav-button {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .nav-button:hover {
+            transform: scale(1.1);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.5),
+                0 0 40px rgba(0, 255, 255, 0.5);
+        }
+
+        .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255, 255, 255, 0.6),
+                transparent
+            );
+            animation: shine 2s infinite;
+        }
+
+        @keyframes shine {
+            100% { left: 200%; }
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); }
+            100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="game-content">
+        <a href="index.html" class="nav-button">返回主页</a>
+        <div id="game-container">
+            <canvas id="gameCanvas" width="300" height="600"></canvas>
+        </div>
+        <div class="info">分数: <span id="score">0</span></div>
+        <div class="controls">
+            使用方向键控制方块：<br>
+            ← → 左右移动<br>
+            ↑ 旋转<br>
+            ↓ 加速下落
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const blockSize = 30;
+        const boardWidth = 10;
+        const boardHeight = 20;
+        let score = 0;
+        let gameBoard = Array(boardHeight).fill().map(() => Array(boardWidth).fill(0));
+        let currentPiece = null;
+        let gameLoop = null;
+
+        const pieces = [
+            [[1,1,1,1]], // I
+            [[1,1],[1,1]], // O
+            [[1,1,1],[0,1,0]], // T
+            [[1,1,1],[1,0,0]], // L
+            [[1,1,1],[0,0,1]], // J
+            [[1,1,0],[0,1,1]], // S
+            [[0,1,1],[1,1,0]]  // Z
+        ];
+
+        const colors = [
+            '#00f0f0', // cyan
+            '#f0f000', // yellow
+            '#a000f0', // purple
+            '#f0a000', // orange
+            '#0000f0', // blue
+            '#00f000', // green
+            '#f00000'  // red
+        ];
+
+        class Piece {
+            constructor(shape, color) {
+                this.shape = shape;
+                this.color = color;
+                this.x = Math.floor((boardWidth - shape[0].length) / 2);
+                this.y = 0;
+            }
+
+            rotate() {
+                const newShape = Array(this.shape[0].length).fill()
+                    .map(() => Array(this.shape.length).fill(0));
+                
+                for(let y = 0; y < this.shape.length; y++) {
+                    for(let x = 0; x < this.shape[0].length; x++) {
+                        newShape[x][this.shape.length - 1 - y] = this.shape[y][x];
+                    }
+                }
+
+                const oldShape = this.shape;
+                this.shape = newShape;
+                
+                if(this.collision()) {
+                    this.shape = oldShape;
+                }
+            }
+
+            collision() {
+                for(let y = 0; y < this.shape.length; y++) {
+                    for(let x = 0; x < this.shape[0].length; x++) {
+                        if(this.shape[y][x]) {
+                            const boardX = this.x + x;
+                            const boardY = this.y + y;
+                            
+                            if(boardX < 0 || boardX >= boardWidth || 
+                               boardY >= boardHeight ||
+                               (boardY >= 0 && gameBoard[boardY][boardX])) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            moveDown() {
+                this.y++;
+                if(this.collision()) {
+                    this.y--;
+                    this.merge();
+                    return false;
+                }
+                return true;
+            }
+
+            moveLeft() {
+                this.x--;
+                if(this.collision()) {
+                    this.x++;
+                }
+            }
+
+            moveRight() {
+                this.x++;
+                if(this.collision()) {
+                    this.x--;
+                }
+            }
+
+            merge() {
+                for(let y = 0; y < this.shape.length; y++) {
+                    for(let x = 0; x < this.shape[0].length; x++) {
+                        if(this.shape[y][x]) {
+                            const boardY = this.y + y;
+                            if(boardY < 0) {
+                                gameOver();
+                                return;
+                            }
+                            gameBoard[boardY][this.x + x] = this.color;
+                        }
+                    }
+                }
+                checkLines();
+                newPiece();
+            }
+        }
+
+        function newPiece() {
+            const index = Math.floor(Math.random() * pieces.length);
+            currentPiece = new Piece(pieces[index], colors[index]);
+            if(currentPiece.collision()) {
+                gameOver();
+            }
+        }
+
+        function checkLines() {
+            for(let y = boardHeight - 1; y >= 0; y--) {
+                if(gameBoard[y].every(cell => cell !== 0)) {
+                    gameBoard.splice(y, 1);
+                    gameBoard.unshift(Array(boardWidth).fill(0));
+                    score += 100;
+                    document.getElementById('score').textContent = score;
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw board
+            for(let y = 0; y < boardHeight; y++) {
+                for(let x = 0; x < boardWidth; x++) {
+                    if(gameBoard[y][x]) {
+                        ctx.fillStyle = gameBoard[y][x];
+                        ctx.fillRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
+                    }
+                }
+            }
+            
+            // Draw current piece
+            if(currentPiece) {
+                ctx.fillStyle = currentPiece.color;
+                for(let y = 0; y < currentPiece.shape.length; y++) {
+                    for(let x = 0; x < currentPiece.shape[0].length; x++) {
+                        if(currentPiece.shape[y][x]) {
+                            ctx.fillRect(
+                                (currentPiece.x + x) * blockSize,
+                                (currentPiece.y + y) * blockSize,
+                                blockSize - 1,
+                                blockSize - 1
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            alert('游戏结束！得分：' + score);
+            gameBoard = Array(boardHeight).fill().map(() => Array(boardWidth).fill(0));
+            score = 0;
+            document.getElementById('score').textContent = score;
+            newPiece();
+            gameLoop = setInterval(update, 1000);
+        }
+
+        function update() {
+            if(currentPiece) {
+                currentPiece.moveDown();
+            }
+            draw();
+        }
+
+        document.addEventListener('keydown', event => {
+            if(!currentPiece) return;
+            
+            switch(event.keyCode) {
+                case 37: // Left
+                    currentPiece.moveLeft();
+                    break;
+                case 39: // Right
+                    currentPiece.moveRight();
+                    break;
+                case 40: // Down
+                    currentPiece.moveDown();
+                    break;
+                case 32: // Space
+                    currentPiece.rotate();
+                    break;
+            }
+            draw();
+        });
+
+        newPiece();
+        gameLoop = setInterval(update, 1000);
+        draw();
+    </script>
+    <script>
+        particlesJS('particles-js',
+        {
+            "particles": {
+                "number": {
+                    "value": 80,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": ["#ff00ff", "#00ffff"]
+                },
+                "shape": {
+                    "type": "circle"
+                },
+                "opacity": {
+                    "value": 0.5,
+                    "random": true
+                },
+                "size": {
+                    "value": 3,
+                    "random": true
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#00ffff",
+                    "opacity": 0.4,
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 2,
+                    "direction": "none",
+                    "random": true,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "repulse"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    },
+                    "resize": true
+                }
+            },
+            "retina_detect": true
+        });
+    </script>
+</body>
+</html>

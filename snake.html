@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>贪吃蛇</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .game-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        canvas {
+            border: 2px solid;
+            border-image: linear-gradient(45deg, #ff00ff, #00ffff) 1;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.3),
+                0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .info {
+            margin: 20px;
+            font-size: 24px;
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .controls {
+            margin: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        #startButton {
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            color: #fff;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #startButton:hover {
+            transform: scale(1.1);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.5),
+                0 0 40px rgba(0, 255, 255, 0.5);
+        }
+
+        #startButton::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255, 255, 255, 0.6),
+                transparent
+            );
+            animation: shine 2s infinite;
+        }
+
+        @keyframes shine {
+            100% { left: 200%; }
+        }
+
+        .nav-button {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .nav-button:hover {
+            transform: scale(1.1);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.5),
+                0 0 40px rgba(0, 255, 255, 0.5);
+        }
+
+        .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255, 255, 255, 0.6),
+                transparent
+            );
+            animation: shine 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="game-content">
+        <a href="index.html" class="nav-button">返回主页</a>
+        <div class="info">
+            <span>分数: <span id="score">0</span></span>
+            <button id="startButton">开始游戏</button>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="controls">
+            使用方向键或WASD控制蛇的移动方向<br>
+            收集食物增加分数，撞到墙壁或自己游戏结束
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+        const startButton = document.getElementById('startButton');
+
+        let snake = [
+            {x: 10, y: 10}
+        ];
+        let food = getRandomFood();
+        let dx = 1;
+        let dy = 0;
+        let score = 0;
+        let gameSpeed = 200;  // 降低速度，增加间隔
+        let gameLoop;
+        let isGameRunning = false;
+
+        function getRandomFood() {
+            return {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+        }
+
+        function drawGame() {
+            // 清除画布
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制蛇
+            ctx.fillStyle = 'green';
+            snake.forEach(segment => {
+                ctx.fillRect(
+                    segment.x * gridSize, 
+                    segment.y * gridSize, 
+                    gridSize - 2, 
+                    gridSize - 2
+                );
+            });
+
+            // 绘制食物
+            ctx.fillStyle = 'red';
+            ctx.fillRect(
+                food.x * gridSize, 
+                food.y * gridSize, 
+                gridSize - 2, 
+                gridSize - 2
+            );
+        }
+
+        function moveSnake() {
+            const head = {
+                x: snake[0].x + dx,
+                y: snake[0].y + dy
+            };
+
+            // 检查是否吃到食物
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                food = getRandomFood();
+                // 食物被吃后不移除尾巴，使蛇变长
+            } else {
+                // 移除尾巴
+                snake.pop();
+            }
+
+            // 插入新的头部
+            snake.unshift(head);
+
+            // 碰撞检测
+            if (
+                head.x < 0 || head.x >= tileCount || 
+                head.y < 0 || head.y >= tileCount ||
+                snake.slice(1).some(segment => 
+                    segment.x === head.x && segment.y === head.y)
+            ) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            isGameRunning = false;
+            startButton.textContent = '重新开始';
+            alert('游戏结束！得分：' + score);
+        }
+
+        function gameUpdate() {
+            if (isGameRunning) {
+                moveSnake();
+                drawGame();
+            }
+        }
+
+        function startGame() {
+            if (!isGameRunning) {
+                // 重置游戏状态
+                snake = [{x: 10, y: 10}];
+                food = getRandomFood();
+                dx = 1;
+                dy = 0;
+                score = 0;
+                document.getElementById('score').textContent = score;
+                
+                // 启动游戏
+                isGameRunning = true;
+                startButton.textContent = '暂停';
+                gameLoop = setInterval(gameUpdate, gameSpeed);
+            } else {
+                // 暂停游戏
+                clearInterval(gameLoop);
+                isGameRunning = false;
+                startButton.textContent = '继续';
+            }
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (!isGameRunning) return;
+
+            switch(e.key) {
+                case 'ArrowUp':    // 上
+                    if (dy === 0) {
+                        dx = 0;
+                        dy = -1;
+                    }
+                    break;
+                case 'ArrowDown':  // 下
+                    if (dy === 0) {
+                        dx = 0;
+                        dy = 1;
+                    }
+                    break;
+                case 'ArrowLeft':  // 左
+                    if (dx === 0) {
+                        dx = -1;
+                        dy = 0;
+                    }
+                    break;
+                case 'ArrowRight': // 右
+                    if (dx === 0) {
+                        dx = 1;
+                        dy = 0;
+                    }
+                    break;
+            }
+        });
+
+        // 开始按钮事件
+        startButton.addEventListener('click', startGame);
+
+        // 初始绘制游戏界面
+        drawGame();
+
+        particlesJS('particles-js',
+        {
+            "particles": {
+                "number": {
+                    "value": 80,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": ["#ff00ff", "#00ffff"]
+                },
+                "shape": {
+                    "type": "circle"
+                },
+                "opacity": {
+                    "value": 0.5,
+                    "random": true
+                },
+                "size": {
+                    "value": 3,
+                    "random": true
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#00ffff",
+                    "opacity": 0.4,
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 2,
+                    "direction": "none",
+                    "random": true,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "repulse"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    },
+                    "resize": true
+                }
+            },
+            "retina_detect": true
+        });
+    </script>
+</body>
+</html>
