@@ -424,12 +424,37 @@
             // 下滑（快速下落）
             else if (deltaY > 50 && Math.abs(deltaY) > Math.abs(deltaX)) {
                 if(currentPiece) {
+                    // 移动到最底部
                     while(!currentPiece.collision()) {
                         currentPiece.y++;
                     }
-                    currentPiece.y--;
+                    currentPiece.y--; // 回退一步，确保不会发生碰撞
+                    
+                    // 将当前方块固定到游戏板上
+                    for(let y = 0; y < currentPiece.shape.length; y++) {
+                        for(let x = 0; x < currentPiece.shape[y].length; x++) {
+                            if(currentPiece.shape[y][x]) {
+                                gameBoard[currentPiece.y + y][currentPiece.x + x] = 1;
+                            }
+                        }
+                    }
+                    
+                    // 检查并清除完整的行
+                    checkLines();
+                    
+                    // 创建新方块
+                    currentPiece = new Piece(
+                        pieces[Math.floor(Math.random() * pieces.length)],
+                        colors[Math.floor(Math.random() * colors.length)]
+                    );
+                    
+                    // 如果新方块一出现就发生碰撞，说明游戏结束
+                    if(currentPiece.collision()) {
+                        gameOver();
+                        return;
+                    }
+                    
                     draw();
-                    newPiece();
                 }
             }
         }, { passive: false });
