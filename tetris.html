@@ -374,58 +374,65 @@
         // 添加触摸控制
         let touchStartX = 0;
         let touchStartY = 0;
-        let lastTap = 0;
+        let touchStartTime = 0;
 
-        canvas.addEventListener('touchstart', (e) => {
+        document.addEventListener('touchstart', (e) => {
             e.preventDefault();
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
-        });
+            touchStartTime = Date.now();
+        }, { passive: false });
 
-        canvas.addEventListener('touchmove', (e) => {
+        document.addEventListener('touchmove', (e) => {
             e.preventDefault();
-        });
+        }, { passive: false });
 
-        canvas.addEventListener('touchend', (e) => {
+        document.addEventListener('touchend', (e) => {
             e.preventDefault();
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
+            const touchEndTime = Date.now();
             
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
-            const now = new Date().getTime();
+            const touchDuration = touchEndTime - touchStartTime;
             
-            // 检测是否为点击（快速触摸）
-            if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && now - lastTap < 300) {
+            // 检测是否为快速点击（旋转）
+            if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && touchDuration < 200) {
                 if(currentPiece) {
                     currentPiece.rotate();
+                    draw();
                 }
+                return;
             }
+            
             // 左右滑动
-            else if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > 50 && currentPiece) {  // 右滑
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+                if (deltaX > 0 && currentPiece) {  // 右滑
                     currentPiece.x++;
                     if(currentPiece.collision()) {
                         currentPiece.x--;
                     }
-                } else if (deltaX < -50 && currentPiece) {  // 左滑
+                } else if (deltaX < 0 && currentPiece) {  // 左滑
                     currentPiece.x--;
                     if(currentPiece.collision()) {
                         currentPiece.x++;
                     }
                 }
+                draw();
             }
-            // 下滑
-            else if (deltaY > 50 && currentPiece) {
-                while(!currentPiece.collision()) {
-                    currentPiece.y++;
+            // 下滑（快速下落）
+            else if (deltaY > 50 && Math.abs(deltaY) > Math.abs(deltaX)) {
+                if(currentPiece) {
+                    while(!currentPiece.collision()) {
+                        currentPiece.y++;
+                    }
+                    currentPiece.y--;
+                    draw();
+                    newPiece();
                 }
-                currentPiece.y--;
-                newPiece();
             }
-            
-            lastTap = now;
-        });
+        }, { passive: false });
 
         newPiece();
         gameLoop = setInterval(update, 1000);
